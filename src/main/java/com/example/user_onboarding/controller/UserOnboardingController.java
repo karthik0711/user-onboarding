@@ -1,9 +1,10 @@
 package com.example.user_onboarding.controller;
 
+import com.example.user_onboarding.repository.UserRepository;
+import com.example.user_onboarding.temporal.UserOnboardingClient;
 import com.example.user_onboarding.temporal.UserOnboardingWorkflow;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,22 +15,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/onboarding")
 public class UserOnboardingController {
-    private final WorkflowClient workflowClient;
+    private final UserRepository userRepository;
+    private final UserOnboardingClient userOnboardingClient;
 
     @Autowired
-    public UserOnboardingController(WorkflowClient workflowClient) {
-        this.workflowClient = workflowClient;
+    public UserOnboardingController(UserRepository userRepository, UserOnboardingClient userOnboardingClient) {
+        this.userRepository = userRepository;
+        this.userOnboardingClient = userOnboardingClient;
     }
 
     @PostMapping("/start")
     public ResponseEntity<String> startOnboarding(@RequestParam String name, @RequestParam String email) {
-        UserOnboardingWorkflow workflow = workflowClient.newWorkflowStub(
-                UserOnboardingWorkflow.class,
-                WorkflowOptions.newBuilder()
-                        .setTaskQueue("UserOnboardingTaskQueue")
-                        .setWorkflowId(email)
-                        .build()
-        );
+        UserOnboardingWorkflow workflow = userOnboardingClient.createWorkflowStub(email);
         try {
             WorkflowClient.start(workflow::startOnboarding, name, email);
         } catch (WorkflowExecutionAlreadyStarted e) {
@@ -41,11 +38,8 @@ public class UserOnboardingController {
     @PostMapping("/verify")
     public ResponseEntity<String> verifyUser(@RequestParam String email) {
         try {
-            UserOnboardingWorkflow workflow = workflowClient.newWorkflowStub(
-                    UserOnboardingWorkflow.class,
-                    email
-            );
-            workflow.verifyUser();
+            UserOnboardingWorkflow workflow = userOnboardingClient.getExistingWorkflowStub(email);
+            workflow.verifyUser(email);
             return ResponseEntity.ok("User verified: " + email);
         } catch (Exception e) {
             e.printStackTrace();
@@ -54,14 +48,11 @@ public class UserOnboardingController {
     }
 
     @PostMapping("/completeKyc")
-    public ResponseEntity<String> completeKyc(@RequestParam String email) {
+    public ResponseEntity<String> completeKyc(@RequestParam String email, @RequestParam String documentId) {
         try {
-            UserOnboardingWorkflow workflow = workflowClient.newWorkflowStub(
-                    UserOnboardingWorkflow.class,
-                    email
-            );
-            workflow.completeKyc();
-            return ResponseEntity.ok("KYC completed for " + email);
+            UserOnboardingWorkflow workflow = userOnboardingClient.getExistingWorkflowStub(email);
+            workflow.completeKyc(documentId);
+            return ResponseEntity.ok("KYC initiated for " + email);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.ok("Error completing KYC: " + e.getMessage());

@@ -16,27 +16,49 @@ import java.time.Duration;
 public class UserOnboardingWorkflowImpl implements UserOnboardingWorkflow {
     private final UserOnboardingActivities activities = Workflow.newActivityStub(
             UserOnboardingActivities.class,
-            ActivityOptions.newBuilder()
-                    .setStartToCloseTimeout(Duration.ofMinutes(10))
+            ActivityOptions.newBuilder() //define configuration setting
+                    .setStartToCloseTimeout(Duration.ofSeconds(10))// Set timeout here
                     .setRetryOptions(RetryOptions.newBuilder()
-                            .setMaximumAttempts(1)
-                            .setDoNotRetry(UserAlreadyExistsException.class.getName())
+                            .setMaximumAttempts(3)
                             .build())
                     .build()
     );
 
-    private boolean isVerified;
-    private boolean isKycCompleted;
+    private boolean isVerified = false ;
+    private boolean isKycCompleted = false;
+    private String pendingVerificationEmail = null;
+    private String documentId = null;
+    private boolean isKycUpdated = false;
 
     @Override
     @WorkflowMethod
     public void startOnboarding(String name, String email) {
         try{
-            activities.saveUser(name, email);
+            this.pendingVerificationEmail = email;
             activities.sendVerificationEmail(email);
-            Workflow.await(() -> isVerified);
-            activities.performKycCheck(email);
-            Workflow.await(() -> isKycCompleted);
+            boolean verified = Workflow.await(Duration.ofMinutes(1), () -> isVerified);
+            if (!verified) {
+                throw ApplicationFailure.newNonRetryableFailure("Email verification failed", "VerificationTimeout");
+            }
+            activities.saveUser(name, email);
+            Workflow.await(() -> this.documentId != null);
+
+            while (!isKycCompleted) {
+                try {
+                    boolean kycSuccess = activities.performKycCheck(email, documentId);
+                    if (kycSuccess) {
+                        System.out.println("KYC completed successfully");
+                        isKycCompleted = true;
+                        break;
+                    }
+                } catch (ActivityFailure e) {
+                    System.out.println("KYC failed after 3 attempts. Waiting for new document...");
+                }
+
+                isKycUpdated = false;
+                Workflow.await(() -> isKycUpdated);
+            }
+
             activities.activateUser(email);
             activities.sendWelcomeEmail(email);
         }
@@ -56,15 +78,16 @@ public class UserOnboardingWorkflowImpl implements UserOnboardingWorkflow {
     }
 
     @Override
-    public void verifyUser() {
-        System.out.println("Received verification signal");
-        this.isVerified = true;
+    public void verifyUser(String email) {
+        if (pendingVerificationEmail != null && pendingVerificationEmail.equals(email)) {
+            isVerified = true;
+        }
     }
 
     @Override
-    public void completeKyc() {
-        System.out.println("Received KYC completion signal");
-        this.isKycCompleted = true;
+    public void completeKyc(String documentId) {
+        this.documentId = documentId;
+        this.isKycUpdated = true;
     }
 }
 
