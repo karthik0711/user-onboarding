@@ -20,7 +20,7 @@ public class UserOnboardingActivitiesImpl implements UserOnboardingActivities {
         User user = new User();
         user.setName(name);
         user.setEmail(email);
-        user.setVerified(false);
+        user.setVerified(true);
         user.setKycCompleted(false);
         user.setActive(false);
         userRepository.save(user);
