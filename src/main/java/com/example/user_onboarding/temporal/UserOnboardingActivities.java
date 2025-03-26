@@ -13,7 +13,7 @@ public interface UserOnboardingActivities {
     void sendVerificationEmail(String email);
 
     @ActivityMethod
-    void performKycCheck(String email);
+    boolean performKycCheck(String email, String documentId);
 
     @ActivityMethod
     void activateUser(String email);

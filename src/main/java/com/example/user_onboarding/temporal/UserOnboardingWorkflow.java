@@ -14,5 +14,5 @@ public interface UserOnboardingWorkflow {
     void verifyUser(String email);
 
     @SignalMethod
-    void completeKyc();
+    void completeKyc(String documentId);
 }

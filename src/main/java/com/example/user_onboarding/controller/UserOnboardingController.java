@@ -56,11 +56,11 @@ public class UserOnboardingController {
     }
 
     @PostMapping("/completeKyc")
-    public ResponseEntity<String> completeKyc(@RequestParam String email) {
+    public ResponseEntity<String> completeKyc(@RequestParam String email, @RequestParam String documentId) {
         try {
             UserOnboardingWorkflow workflow = userOnboardingClient.getExistingWorkflowStub(email);
-            workflow.completeKyc();
-            return ResponseEntity.ok("KYC completed for " + email);
+            workflow.completeKyc(documentId);
+            return ResponseEntity.ok("KYC initiated for " + email);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.ok("Error completing KYC: " + e.getMessage());
