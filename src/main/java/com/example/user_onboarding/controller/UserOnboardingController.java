@@ -1,12 +1,9 @@
 package com.example.user_onboarding.controller;
 
-import com.example.user_onboarding.repository.UserRepository;
 import com.example.user_onboarding.temporal.UserOnboardingWorkflow;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,22 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/onboarding")
 public class UserOnboardingController {
-    private static final Logger log = LogManager.getLogger(UserOnboardingController.class);
     private final WorkflowClient workflowClient;
-    private final UserRepository userRepository;
 
     @Autowired
-    public UserOnboardingController(WorkflowClient workflowClient, UserRepository userRepository) {
+    public UserOnboardingController(WorkflowClient workflowClient) {
         this.workflowClient = workflowClient;
-        this.userRepository = userRepository;
     }
 
     @PostMapping("/start")
     public ResponseEntity<String> startOnboarding(@RequestParam String name, @RequestParam String email) {
-        if (userRepository.existsByEmail(email)) {
-            return ResponseEntity.ok("User already exists. Redirecting to onboarding page...");
-        }
-
         UserOnboardingWorkflow workflow = workflowClient.newWorkflowStub(
                 UserOnboardingWorkflow.class,
                 WorkflowOptions.newBuilder()
@@ -53,7 +43,7 @@ public class UserOnboardingController {
         try {
             UserOnboardingWorkflow workflow = workflowClient.newWorkflowStub(
                     UserOnboardingWorkflow.class,
-                    email //as workflow are same, it will take the same email id
+                    email
             );
             workflow.verifyUser();
             return ResponseEntity.ok("User verified: " + email);
