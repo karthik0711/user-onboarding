@@ -15,9 +15,9 @@ public class UserOnboardingWorkflowImpl implements UserOnboardingWorkflow {
     private final UserOnboardingActivities activities = Workflow.newActivityStub(
             UserOnboardingActivities.class,
             ActivityOptions.newBuilder()
-                    .setStartToCloseTimeout(Duration.ofSeconds(30)) // Activity must complete in 30s
+                    .setStartToCloseTimeout(Duration.ofSeconds(30))
                     .setRetryOptions(RetryOptions.newBuilder()
-                            .setMaximumAttempts(3) // Retry up to 3 times
+                            .setMaximumAttempts(3)
                             .build())
                     .build()
     );
@@ -48,7 +48,10 @@ public class UserOnboardingWorkflowImpl implements UserOnboardingWorkflow {
                     isKycCompleted = true;
                     break;
                 }
-            } catch (ActivityFailure e) {
+            } catch (ApplicationFailure e) {
+                if ("KycNotFound".equals(e.getType())) {
+                    throw Workflow.wrap(e);
+                }
                 System.out.println("KYC failed after 3 attempts. Waiting for new document...");
             }
 

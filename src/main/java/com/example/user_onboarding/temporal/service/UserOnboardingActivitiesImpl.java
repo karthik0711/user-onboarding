@@ -44,12 +44,13 @@ public class UserOnboardingActivitiesImpl implements UserOnboardingActivities {
         Optional<KycInfo> kycRecord = kycRepository.findByEmail(email);
 
         if (kycRecord.isEmpty()) {
-            throw ApplicationFailure.newNonRetryableFailure("Email not found", "KYC_ERROR");
+            userRepository.deleteByEmail(email);
+            throw ApplicationFailure.newNonRetryableFailure("Email not found. User deleted", "KycNotFound");
         }
 
         String expectedKycId = kycRecord.get().getKycId();
         if (!expectedKycId.equals(documentId)) {
-            throw ApplicationFailure.newFailure("ID mismatch", "KYC_ERROR");
+            throw ApplicationFailure.newFailure("ID mismatch", "KycIdMismatch");
         }
         return true;
     }
