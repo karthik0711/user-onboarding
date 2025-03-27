@@ -15,17 +15,9 @@ public class User {
     @Unique
     private String email;
 
-    private boolean isVerified; //indicate user verify its email or not
-    private boolean isKycCompleted; //indicate that completed your kyc process
-    private boolean isActive; //indicate is user activated or ready to use or not
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
+    private boolean isVerified;
+    private boolean isKycCompleted;
+    private boolean isActive;
 
     public String getName() {
         return name;

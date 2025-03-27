@@ -5,9 +5,6 @@ import com.example.user_onboarding.temporal.UserOnboardingClient;
 import com.example.user_onboarding.temporal.UserOnboardingWorkflow;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowOptions;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/onboarding")
 public class UserOnboardingController {
-    private static final Logger log = LogManager.getLogger(UserOnboardingController.class);
     private final UserRepository userRepository;
     private final UserOnboardingClient userOnboardingClient;
 
@@ -30,10 +26,6 @@ public class UserOnboardingController {
 
     @PostMapping("/start")
     public ResponseEntity<String> startOnboarding(@RequestParam String name, @RequestParam String email) {
-        if (userRepository.existsByEmail(email)) {
-            return ResponseEntity.ok("User already exists. Redirecting to onboarding page...");
-        }
-
         UserOnboardingWorkflow workflow = userOnboardingClient.createWorkflowStub(email);
         try {
             WorkflowClient.start(workflow::startOnboarding, name, email);
