@@ -46,6 +46,7 @@ public class KafkaConsumerService {
             // Signal the Temporal workflow that the user is verified
             UserOnboardingWorkflow workflow = userOnboardingClient.getExistingWorkflowStub(event.getEmail());
             workflow.verifyUser(event.getEmail());
+            logger.info("Successfully signaled workflow for verification: {}", event.getEmail());
         } catch (Exception e) {
             logger.error("Error signaling workflow for verification: {}", e.getMessage());
         }
@@ -60,6 +61,8 @@ public class KafkaConsumerService {
             // Signal the Temporal workflow with the KYC document ID
             UserOnboardingWorkflow workflow = userOnboardingClient.getExistingWorkflowStub(event.getEmail());
             workflow.completeKyc(event.getDocumentId());
+            logger.info("Successfully signaled workflow for KYC: {}", event.getEmail());
+
         } catch (Exception e) {
             logger.error("Error signaling workflow for KYC: {}", e.getMessage());
         }
@@ -87,7 +90,13 @@ public class KafkaConsumerService {
 
         // Send welcome email
         emailService.sendWelcomeEmail(event.getEmail());
-
+        // Update user status in database if needed
+        User user = userRepository.findByEmail(event.getEmail());
+        if (user != null && !user.isActive()) {
+            user.setActive(true);
+            userRepository.save(user);
+            logger.info("User activated status updated for email: {}", event.getEmail());
+        }
         logger.info("User onboarding completed for email: {}", event.getEmail());
     }
 }

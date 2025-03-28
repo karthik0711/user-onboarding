@@ -6,7 +6,6 @@ import com.example.user_onboarding.temporal.UserOnboardingClient;
 import com.example.user_onboarding.temporal.UserOnboardingWorkflow;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,13 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/onboarding")
 public class UserOnboardingController {
-    private final UserRepository userRepository;
     private final UserOnboardingClient userOnboardingClient;
     private final KafkaProducerService kafkaProducerService;
 
     @Autowired
-    public UserOnboardingController(UserRepository userRepository, UserOnboardingClient userOnboardingClient) {
-        this.userRepository = userRepository;
+    public UserOnboardingController(UserOnboardingClient userOnboardingClient,KafkaProducerService kafkaProducerService) {
         this.userOnboardingClient = userOnboardingClient;
         this.kafkaProducerService = kafkaProducerService;
     }
@@ -71,7 +68,8 @@ public class UserOnboardingController {
 
             return ResponseEntity.ok("KYC initiated for " + email);
         } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Error completing KYC: " + e.getMessage());
         }
     }
 }

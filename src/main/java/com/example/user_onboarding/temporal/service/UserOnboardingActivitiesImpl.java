@@ -9,6 +9,7 @@ import com.example.user_onboarding.repository.UserRepository;
 import com.example.user_onboarding.service.KafkaProducerService;
 import com.example.user_onboarding.temporal.UserOnboardingActivities;
 import io.temporal.failure.ApplicationFailure;
+import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.units.qual.K;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,13 @@ public class UserOnboardingActivitiesImpl implements UserOnboardingActivities {
 
     @Override
     public void saveUser(String name, String email) {
-
+    // Check if user already exists
+        if (userRepository.existsByEmail(email)) {
+            User existingUser = userRepository.findByEmail(email);
+            existingUser.setVerified(true);
+            userRepository.save(existingUser);
+            return;
+        }
         User user = new User();
         user.setName(name);
         user.setEmail(email);
@@ -61,18 +68,39 @@ public class UserOnboardingActivitiesImpl implements UserOnboardingActivities {
 
     @Override
     public boolean performKycCheck(String email,String documentId) {
-        Optional<KycInfo> kycRecord = kycRepository.findByEmail(email);
 
-        if (kycRecord.isEmpty()) {
-            userRepository.deleteByEmail(email);
-            throw ApplicationFailure.newNonRetryableFailure("Email not found. User deleted", "KycNotFound");
+        System.out.println("Performing KYC check for : " + email);
+
+        // first check if the user exist
+        if(!userRepository.existsByEmail(email)){
+            System.out.println("User does not exist");
+            throw ApplicationFailure.newNonRetryableFailure(
+                    "User does not exist",
+                    "UserNotFound"
+            );
         }
 
+        //check if the kyc record exist
+        Optional<KycInfo> kycRecord = kycRepository.findByEmail(email);
+        if(kycRecord.isEmpty()){
+            System.out.println("KYC record not found");
+
+            KycInfo kycInfo = new KycInfo(email, documentId);
+            kycRepository.save(kycInfo);
+
+            //send kyc success event
+            kafkaProducerService.sendKycCompletedEvent(email,documentId,true);
+            return true;
+        }
         String expectedKycId = kycRecord.get().getKycId();
         if (!expectedKycId.equals(documentId)) {
+            System.out.println("KYC ID mismatch for email:"+email);
             // Send KYC failure event
             kafkaProducerService.sendKycCompletedEvent(email, documentId, false);
-            throw ApplicationFailure.newFailure("ID mismatch", "KycIdMismatch");
+            throw ApplicationFailure.newFailure(
+                    "KYC ID mismatch",
+                    "KycIdMismatch"
+            );
         }
         // Send KYC success event
         kafkaProducerService.sendKycCompletedEvent(email, documentId, true);

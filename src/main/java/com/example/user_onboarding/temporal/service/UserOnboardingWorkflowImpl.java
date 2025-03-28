@@ -47,9 +47,10 @@ public class UserOnboardingWorkflowImpl implements UserOnboardingWorkflow {
                     System.out.println("Invalid email: Stopping workflow.");
                     throw Workflow.wrap(failure);
                 }
+                throw Workflow.wrap(e);
             }
         }
-        boolean verified = Workflow.await(Duration.ofMinutes(1), () -> isVerified);
+        boolean verified = Workflow.await(Duration.ofMinutes(10), () -> isVerified);
         if (!verified) {
             throw ApplicationFailure.newNonRetryableFailure("Email verification failed", "VerificationTimeout");
         }
@@ -62,19 +63,28 @@ public class UserOnboardingWorkflowImpl implements UserOnboardingWorkflow {
                 if (kycSuccess) {
                     System.out.println("KYC completed successfully");
                     isKycCompleted = true;
-                    break;
                 }
             } catch (ActivityFailure e) {
                 if (e.getCause() instanceof ApplicationFailure failure) {
                     if ("KycNotFound".equals(failure.getType())) {
                         System.out.println("workflow has stopped");
                         throw Workflow.wrap(e);
+                    }else if("KycIdMismatch".equals(failure.getType())){
+                        System.out.println("KYC failed due to ID mismatch");
+                        isKycCompleted = false;
+                        Workflow.await(() -> isKycUpdated);
+                        continue;
                     }
-                    System.out.println("KYC failed after 3 attempts. Waiting for new document...");
-
-
-                    isKycUpdated = false;
+                    System.out.println("KYC check failed"+ e.getMessage());
+                    // wait for updated document
+                    isKycCompleted = false;
                     Workflow.await(() -> isKycUpdated);
+                    continue;
+                }
+
+                // Break out of the loop if kyc is completed
+                if(isKycCompleted){
+                    break;
                 }
             }
 
