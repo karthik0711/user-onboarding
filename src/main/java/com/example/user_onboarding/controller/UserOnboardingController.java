@@ -6,6 +6,7 @@ import com.example.user_onboarding.temporal.UserOnboardingWorkflow;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,12 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/onboarding")
 public class UserOnboardingController {
-    private final UserRepository userRepository;
     private final UserOnboardingClient userOnboardingClient;
 
     @Autowired
-    public UserOnboardingController(UserRepository userRepository, UserOnboardingClient userOnboardingClient) {
-        this.userRepository = userRepository;
+    public UserOnboardingController( UserOnboardingClient userOnboardingClient) {
         this.userOnboardingClient = userOnboardingClient;
     }
 
@@ -30,9 +29,9 @@ public class UserOnboardingController {
         try {
             WorkflowClient.start(workflow::startOnboarding, name, email);
         } catch (WorkflowExecutionAlreadyStarted e) {
-            return ResponseEntity.ok("Onboarding already started for " + email);
+            return ResponseEntity.ok("workflow already started for " + email);
         }
-        return ResponseEntity.ok("Onboarding process started.");
+        return ResponseEntity.ok("workflow started successfully");
     }
 
     @PostMapping("/verify")
@@ -54,8 +53,7 @@ public class UserOnboardingController {
             workflow.completeKyc(documentId);
             return ResponseEntity.ok("KYC initiated for " + email);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.ok("Error completing KYC: " + e.getMessage());
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 }
